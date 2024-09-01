@@ -18,9 +18,18 @@ Key Components:
 
 The generator supports various PFCP message types, including Association Setup, Session Establishment, Modification, and Deletion. It implements realistic IEs such as PDRs, FARs, QERs, and URRs, and simulates 5G-specific elements like QFI.
 
-## README.md
+What's the packet forwarding model in PFCP? (Source: Navarro do Amaral et al. 2022, fig. 5)
 
-```markdown
+
+<img width="518" alt="image" src="https://github.com/user-attachments/assets/77d983c0-9b8b-455e-b9a3-58fd5371edb3">
+
+
+Which are the main procedures in PFCP? (Source: ETSI 2023c, table 7.3-1.)
+
+
+![image](https://github.com/user-attachments/assets/6c2688a0-ed80-49d5-b483-79e6fcec1dea)
+
+
 # PFCP Packet Generator
 
 A Python-based tool for generating realistic PFCP (Packet Forwarding Control Protocol) traffic simulations for 5G core networks.
@@ -124,28 +133,6 @@ This implementation provides a basic framework for PFCP message exchange simulat
 - Scapy library
 
 
-## Usage
-
-1. Configure the simulation parameters in `config.yaml`:
-   ```yaml
-   source_ip: "192.0.2.1"
-   destination_ip: "192.0.2.2"
-   num_sessions: 10
-   simulation_duration: 300  # seconds
-   ```
-
-2. Run the generator:
-   ```
-   python pfcp_generator.py
-   ```
-
-3. Find the generated PCAP file in the `output` directory.
-
-## Customization
-
-- Modify `message_templates.py` to adjust PFCP message structures.
-- Edit `ie_templates.py` to customize Information Elements.
-
 ## Analysis
 
 Use Wireshark or other packet analysis tools to examine the generated PCAP files.
@@ -157,14 +144,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-```
 
 
 
 
-# Prioritized PFCP Packet Generator Enhancement Plan for futur releases
 
-## High Priority (Essential for basic realism)
+
+## Prioritized PFCP Packet Generator Enhancement Plan for future releases
+
+### High Priority (Essential for basic realism)
 
 1. Enhance Information Elements (IEs):
    - Implement more complex IEs such as Create/Update/Remove PDR, FAR, QER, and URR
