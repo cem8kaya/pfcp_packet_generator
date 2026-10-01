@@ -1,0 +1,22 @@
+{
+  "name": "embb",
+  "qfi": 9,
+  "mbr_ul": 100000000,
+  "mbr_dl": 1000000000,
+  "gbr_ul": null,
+  "gbr_dl": null,
+  "dnn": "internet",
+  "sst": 1,
+  "sd": null,
+  "app_id": null,
+  "flow_description": "permit out ip from any to assigned",
+  "volume_threshold": 10000000,
+  "time_threshold": 60,
+  "ul_rate_bps": 2000000,
+  "dl_rate_bps": 10000000,
+  "timing": "poisson",
+  "mean_interval": 1.0,
+  "burst_size": 5,
+  "burst_gap": 0.01,
+  "precedence": 100
+}
