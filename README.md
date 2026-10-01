@@ -74,15 +74,18 @@ The Enhanced PFCP (Packet Forwarding Control Protocol) Packet Generator is a Pyt
 1. Limited to PFCP protocol simulation only; does not simulate actual user plane traffic
 2. Simplified network topology assumed (point-to-point communication between CP and UP functions)
 3. Does not include all possible IEs defined in 3GPP TS 29.244; focuses on core elements
-4. Stateless operation - does not maintain session state between different message generations
-5. Does not simulate network delays or packet loss scenarios
-6. Limited to IPv4 addressing; IPv6 not currently supported
+4. The legacy `pfcp_packet_generator.py` is stateless; use the `pfcp_gen` package for stateful scenarios
+5. Network delay is modelled as a jittered RTT and request retransmission; no real packet loss on the wire
+6. PFCP has no native authentication: node authentication is simulated via allow-list + optional ESP wrapping
 
 ## Requirements
 
 - Python 3.7+
 - Scapy library
-- Scapy PFCP contribution
+- Scapy PFCP contribution (bundled with Scapy)
+- `cryptography` (only for `--ipsec`)
+
+Install: `pip install -r requirements.txt`
 
 ## Analysis
 
@@ -117,82 +120,68 @@ Contributions are welcome! Please feel free to submit a Pull Request. Please ens
 
 
 
-## Prioritized PFCP Packet Generator Enhancement Plan for future releases
+## Quick start (`pfcp_gen` package)
 
-You can find the Enhancement Plan here : https://github.com/users/cem8kaya/projects/4
+```bash
+python -m pfcp_gen generate lifecycle -n 5 -o out.pcap --check
+python -m pfcp_gen generate paging   --profile urllc --upfs 3 --fteid range
+python -m pfcp_gen generate restart  --ipv6
+python -m pfcp_gen generate errors   -o errors.pcap
+python -m pfcp_gen generate slices -n 3 --ursp --ipsec
+python -m pfcp_gen generate lifecycle --profile profiles/miot.json --seed 42
+python -m pfcp_gen check out.pcap          # compliance-check any PFCP pcap
+python -m pfcp_gen profiles                # list built-in traffic profiles
+pytest tests                               # run the test-suite
+```
+
+Scenarios: `lifecycle paging multi slices restart errors usage appdetect mixed`.
+Python API: `from pfcp_gen import PFCPSimulator` - see `pfcp_gen/simulator.py`.
+
+| Module | Purpose |
+|---|---|
+| `pfcp_gen/ies.py` | IE builders (PDR/FAR/QER/URR/BAR, PDI, S-NSSAI, usage report, PFD, IPv4/IPv6) |
+| `pfcp_gen/state.py` | session state machine, F-TEID allocator, UPF pool |
+| `pfcp_gen/profiles.py` | traffic profiles (presets + JSON) and timing models |
+| `pfcp_gen/simulator.py` | message exchanges and composite scenarios |
+| `pfcp_gen/security.py` | node allow-list and ESP protection |
+| `pfcp_gen/compliance.py` | TS 29.244 compliance checker |
+| `profiles/*.json` | example custom traffic profiles |
+
+## Enhancement Plan - status
+
+Project board: https://github.com/users/cem8kaya/projects/4
 
 ### High Priority (Essential for basic realism)
 
-[DONE]1. Enhance Information Elements (IEs):
-   - Implement more complex IEs such as Create/Update/Remove PDR, FAR, QER, and URR
-   - This forms the core of PFCP functionality
+1. [DONE] Enhance Information Elements (Create/Update/Remove PDR, FAR, QER, URR)
+2. [DONE] Realistic Session Lifecycle Simulation - `SessionState` machine (illegal transitions raise `InvalidTransition`), consistent SEIDs/sequence numbers, `PFCPSimulator.lifecycle()`
+3. [DONE] Additional Message Types - Session Report Request/Response, Association Update/Release, PFD Management, Node Report, Session Set Deletion, Version Not Supported
+4. [DONE] QoS Handling
+5. [DONE] Usage Reporting - Create/Update/Query URR, volume/time/periodic triggers, Usage Report in Session Report, Modification and Deletion responses, UR-SEQN
+6. [DONE] 5G-Specific Elements - QFI (validated 1..63), PDU session type, DNN, S-NSSAI (IE 257, custom IE since Scapy lacks it), outer-header removal for N3
 
-2. Realistic Session Lifecycle Simulation:
-   - Implement a state machine for session management
-   - Generate sequences of messages reflecting typical session lifecycles
+### Medium Priority (Enhances realism significantly)
 
-3. Implement Additional Message Types:
-   - PFCPSessionReportRequest/Response
-   - These are crucial for ongoing session management
+7. [DONE] Traffic Patterns and Timing - `constant`, `poisson`, `burst` models; request/response timestamps with jittered RTT
+8. [DONE] Network Slicing - S-NSSAI in PDI, per-slice sessions (`slices` scenario), slice-aware UPF selection
+9. [DONE] Failure Handling and Recovery - unanswered heartbeats with N1/T1, UPF restart (new Recovery Time Stamp, re-association), CP restart (Session Set Deletion), path failure Node Report, request retransmission
+10. [DONE] Packet Forwarding - FORW with outer header creation, DROP, BUFF/NOCP, DUPL, forwarding policy, network instance
+11. [DONE] Error Scenarios - 13 scenarios (cause 64-77, Offending IE, Failed Rule ID, overload control, version not supported)
+12. [DONE] F-TEID Allocation - UP-allocated (CHOOSE flag + Created PDR), CP-allocated sequential/random/TEID-range (advertised via User Plane IP Resource Information)
+13. [DONE] Buffering and Paging - BAR, BUFF+NOCP, Downlink Data Report, resume on service request
 
-[DONE]4. QoS Handling:
-   - Implement detailed QoS parameters in QER IEs
-   - Essential for simulating real-world traffic management
+### Lower Priority (Adds depth to specific scenarios)
 
-5. Usage Reporting:
-   - Implement realistic usage reporting scenarios
-   - Critical for simulating network monitoring and charging
+14. [DONE] UPF Selection and Load Balancing - `UpfPool` with capacity, DNN/slice capability matching, round-robin / least-loaded / weighted / random
+15. [DONE] Application Detection and Control - PFD Management, Application ID in PDI, Application Detection Information report
+16. [DONE] IPv6 Support - IPv6 transport, Node ID, F-SEID, F-TEID, UE IP, outer header creation, user-plane resource info
+17. [DONE] Security Features - Node ID allow-list authentication (cause 64 on failure) and ESP-wrapped N4 (`--ipsec`). Note: 3GPP specifies transport-level protection, not a PFCP auth message
+18. [DONE] URSP Integration - `UrspRule` mapped to N4-visible effects (traffic descriptor to SDF/App ID, route selection to S-NSSAI/DNN, precedence). URSP itself is a NAS/PCF construct, so only its UPF-side consequences appear in PFCP
+19. [DONE] Customizable Traffic Profiles - `TrafficProfile` dataclass, presets (`embb`, `urllc`, `miot`, `voice`), JSON loading with validation
+20. [DONE] Compliance Checking - header/length/S-flag rules, mandatory IE tables, cause values, rule consistency (GBR<=MBR, FORW needs forwarding parameters, ...), request/response pairing, PCAP checker
 
-6. 5G-Specific Elements:
-   - Implement 5G-specific IEs such as QFI (QoS Flow Identifier)
-   - Essential for 5G-specific scenarios
+### Known gaps / future work
 
-## Medium Priority (Enhances realism significantly)
-
-7. Traffic Patterns and Timing:
-   - Implement realistic inter-packet timing and burst patterns
-   - Improves the temporal aspect of the simulation
-
-8. Network Slicing Support:
-   - Include NSSAI in relevant messages
-   - Important for 5G network slicing scenarios
-
-9. Failure Handling and Recovery:
-   - Simulate node failures and recovery procedures
-   - Implement PFCP heartbeat mechanism
-
-10. Packet Forwarding Simulation:
-    - Implement more complex forwarding scenarios in FAR IEs
-
-11. Error Scenarios:
-    - Implement various error scenarios and corresponding error handling
-
-12. F-TEID Allocation:
-    - Implement realistic F-TEID allocation strategies
-
-13. Buffering and Paging:
-    - Simulate downlink data buffering scenarios
-    - Implement paging trigger conditions
-
-## Lower Priority (Adds depth to specific scenarios)
-
-14. UPF Selection and Load Balancing:
-    - Simulate multiple UPFs with different capabilities
-
-15. Application Detection and Control:
-    - Implement Application Detection IEs
-
-16. IPv6 Support:
-    - Extend the implementation to support IPv6 addresses
-
-17. Security Features:
-    - Implement node authentication procedures
-
-18. URSP (UE Route Selection Policy) Integration:
-    - Include URSP-related information in sessions
-
-19. Customizable Traffic Profiles:
-    - Allow users to define custom traffic profiles
-
-20. Compliance Checking:
-    - Implement checks to ensure generated messages comply with 3GPP specifications
+- Compliance tables cover Rel-15/16 mandatory IEs, not every conditional rule of TS 29.244
+- Output has not been validated against a Wireshark dissector in CI (tshark unavailable here); round-trip via Scapy is tested
+- Ethernet PDU sessions, MBS and Rel-17+ IEs are not modelled

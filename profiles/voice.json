@@ -1,0 +1,22 @@
+{
+  "name": "voice",
+  "qfi": 1,
+  "mbr_ul": 128000,
+  "mbr_dl": 128000,
+  "gbr_ul": 64000,
+  "gbr_dl": 64000,
+  "dnn": "ims",
+  "sst": 1,
+  "sd": null,
+  "app_id": "ims-voice",
+  "flow_description": "permit out ip from any to assigned",
+  "volume_threshold": 500000,
+  "time_threshold": 30,
+  "ul_rate_bps": 2000000,
+  "dl_rate_bps": 10000000,
+  "timing": "constant",
+  "mean_interval": 0.02,
+  "burst_size": 5,
+  "burst_gap": 0.01,
+  "precedence": 100
+}

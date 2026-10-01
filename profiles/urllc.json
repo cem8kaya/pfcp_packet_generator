@@ -1,0 +1,22 @@
+{
+  "name": "urllc",
+  "qfi": 7,
+  "mbr_ul": 10000000,
+  "mbr_dl": 10000000,
+  "gbr_ul": 5000000,
+  "gbr_dl": 5000000,
+  "dnn": "urllc",
+  "sst": 2,
+  "sd": null,
+  "app_id": null,
+  "flow_description": "permit out ip from any to assigned",
+  "volume_threshold": 1000000,
+  "time_threshold": 10,
+  "ul_rate_bps": 2000000,
+  "dl_rate_bps": 10000000,
+  "timing": "constant",
+  "mean_interval": 0.1,
+  "burst_size": 5,
+  "burst_gap": 0.01,
+  "precedence": 100
+}

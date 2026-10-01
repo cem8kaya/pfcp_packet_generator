@@ -1,0 +1,22 @@
+{
+  "name": "miot",
+  "qfi": 9,
+  "mbr_ul": 100000,
+  "mbr_dl": 100000,
+  "gbr_ul": null,
+  "gbr_dl": null,
+  "dnn": "iot",
+  "sst": 3,
+  "sd": null,
+  "app_id": null,
+  "flow_description": "permit out ip from any to assigned",
+  "volume_threshold": 100000,
+  "time_threshold": 300,
+  "ul_rate_bps": 5000,
+  "dl_rate_bps": 1000,
+  "timing": "burst",
+  "mean_interval": 30,
+  "burst_size": 3,
+  "burst_gap": 0.01,
+  "precedence": 100
+}
