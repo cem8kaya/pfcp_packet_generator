@@ -3,7 +3,8 @@ IE tables and structural rules of TS 29.244 (Rel-15/16 subset)."""
 from dataclasses import dataclass
 from typing import List
 
-from scapy.all import UDP, IP, IPv6, rdpcap, Raw
+from scapy.all import UDP, IP, IPv6, ICMP, rdpcap, Raw
+from scapy.layers.inet6 import ICMPv6DestUnreach
 from scapy.contrib.pfcp import (PFCP, IE_Base, IE_NotImplemented,
                                 CauseValues)
 
@@ -91,6 +92,8 @@ class ComplianceChecker:
             v.append(Violation(sev, mt, detail, idx))
 
         pkt = pkt.__class__(bytes(pkt))     # force full build + dissect
+        if ICMP in pkt or ICMPv6DestUnreach in pkt:
+            return v                        # path signalling, not PFCP
         if UDP not in pkt:
             add("error", "?", "not a UDP packet")
             return v

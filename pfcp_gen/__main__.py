@@ -2,13 +2,14 @@
 import argparse
 import sys
 
+from . import faults
 from .compliance import ComplianceChecker, summarize
 from .profiles import PRESETS, get_profile
 from .simulator import PFCPSimulator, UrspRule
 from .state import Upf, FteidAllocator
 
 SCENARIOS = ("lifecycle", "paging", "multi", "slices", "restart", "errors",
-             "usage", "appdetect", "mixed")
+             "usage", "appdetect", "mixed", "flap", "storm", "orphan")
 
 
 def _build_upfs(n, ipv6, profile, strategy):
@@ -67,6 +68,17 @@ def run_scenario(sim, name, count):
         sim.application_detection(s)
         sim.usage_report(s)
         sim.session_deletion(s)
+    elif name == "flap":
+        sim.association_setup(upf)
+        faults.heartbeat_flap(sim, upf, cycles=max(count, 1),
+                              events=sim.fault_events)
+    elif name == "storm":
+        sim.association_setup(upf)
+        faults.signaling_storm(sim, upf, n=max(count, 1) * 20,
+                               capacity=max(count, 1) * 10,
+                               events=sim.fault_events)
+    elif name == "orphan":
+        faults.orphan_session(sim, upf, events=sim.fault_events)
     elif name == "mixed":
         sim.association_setup(upf)
         for _ in range(count):
@@ -90,9 +102,15 @@ def cmd_generate(a):
                         ipv6=a.ipv6, ipsec=a.ipsec, ursp_rules=ursp,
                         upf_strategy=a.upf_strategy, auth=auth,
                         fteid_mode="up" if a.fteid != "cp" else "cp")
+    sim.fault_events = []
     run_scenario(sim, a.scenario, a.count)
+    if a.faults:
+        return _write_with_faults(sim.packets, a, sim.fault_events)
     n = sim.write(a.output)
     print(f"{n} packets written to {a.output}")
+    if a.fault_log and sim.fault_events:
+        _dump_log(a.fault_log, None, sim.fault_events)
+        print(f"ground truth: {a.fault_log}")
     if a.check and not a.ipsec:
         v = ComplianceChecker().check_packets(sim.packets)
         for x in v:
@@ -100,6 +118,50 @@ def cmd_generate(a):
         print("compliance:", summarize(v))
         if a.scenario != "errors" and any(x.severity == "error" for x in v):
             return 1
+    return 0
+
+
+def _dump_log(path, plan, events):
+    import json
+    with open(path, "w") as fh:
+        json.dump({"plan": plan.to_dict() if plan else None,
+                   "events": [e.to_dict() for e in events]}, fh, indent=2)
+
+
+def _write_with_faults(packets, a, scenario_events=()):
+    plan = faults.get_plan(a.faults)
+    inj = faults.FaultInjector(plan, seed=a.fault_seed
+                               if a.fault_seed is not None else a.seed)
+    out, events = inj.write(packets, a.output)
+    events = sorted(list(events) + list(scenario_events),
+                    key=lambda e: e.time)
+    if a.fault_log:
+        _dump_log(a.fault_log, plan, events)
+    from collections import Counter
+    print(f"{len(packets)} -> {len(out)} packets written to {a.output} "
+          f"(plan: {plan.name})")
+    for k, v in sorted(Counter((e.layer, e.fault) for e in events).items()):
+        print(f"  {k[0]:9} {k[1]:26} x{v}")
+    if a.fault_log:
+        print(f"ground truth: {a.fault_log}")
+    if a.check:
+        viol = ComplianceChecker().check_packets(out)
+        print("compliance after injection:", summarize(viol))
+    return 0
+
+
+def cmd_inject(a):
+    from scapy.all import rdpcap
+    return _write_with_faults(rdpcap(a.pcap), a)
+
+
+def cmd_faults(a):
+    print("presets:")
+    for n, p in faults.FAULT_PRESETS.items():
+        print(f"  {n:20} protocol faults: {len(p.protocol)}")
+    print("\nprotocol faults (name: side - expected peer behaviour):")
+    for n, m in faults.MUTATORS.items():
+        print(f"  {n:26} {m.side:8} {m.expected}")
     return 0
 
 
@@ -144,7 +206,22 @@ def main(argv=None):
     g.add_argument("--trusted", nargs="*", help="Node ID allow-list")
     g.add_argument("--check", action="store_true",
                    help="run compliance check on the output")
+    g.add_argument("--faults", help="fault preset name or JSON plan "
+                   "(see `faults` subcommand)")
+    g.add_argument("--fault-log", help="write ground-truth JSON here")
+    g.add_argument("--fault-seed", type=int)
     g.set_defaults(fn=cmd_generate)
+    i = sub.add_parser("inject", help="inject faults into an existing PCAP")
+    i.add_argument("pcap")
+    i.add_argument("-o", "--output", default="pfcp_faulty.pcap")
+    i.add_argument("--faults", required=True)
+    i.add_argument("--fault-log")
+    i.add_argument("--fault-seed", type=int)
+    i.add_argument("--seed", type=int)
+    i.add_argument("--check", action="store_true")
+    i.set_defaults(fn=cmd_inject)
+    f = sub.add_parser("faults", help="list fault presets and anomalies")
+    f.set_defaults(fn=cmd_faults)
     c = sub.add_parser("check", help="compliance-check an existing PCAP")
     c.add_argument("pcap")
     c.set_defaults(fn=cmd_check)
