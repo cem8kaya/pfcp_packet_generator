@@ -147,6 +147,43 @@ Python API: `from pfcp_gen import PFCPSimulator` - see `pfcp_gen/simulator.py`.
 | `pfcp_gen/compliance.py` | TS 29.244 compliance checker |
 | `profiles/*.json` | example custom traffic profiles |
 
+## Fault and anomaly injection
+
+`pfcp_gen/faults.py` injects faults modelled on real N4 behaviour and writes a
+**ground-truth log** (JSON: time, layer, fault, detail, expected peer
+behaviour, packet index) so probes, IDS rules and dissectors can be scored.
+
+```bash
+python -m pfcp_gen faults                                   # list presets / anomalies
+python -m pfcp_gen generate mixed -n 10 --faults congested_backhaul --fault-log gt.json -o f.pcap
+python -m pfcp_gen generate lifecycle --faults buggy_peer --check
+python -m pfcp_gen inject existing.pcap --faults chaos --fault-seed 7 -o faulty.pcap
+python -m pfcp_gen generate storm -n 3        # signalling storm + Cause 74 + backoff
+python -m pfcp_gen generate flap              # heartbeat flapping, path stays up
+python -m pfcp_gen generate orphan            # silent UPF restart -> Cause 65 -> re-establish
+```
+
+| Layer | What is injected | Realistic consequence generated |
+|---|---|---|
+| Network | Gilbert-Elliott burst loss, plain loss, outage windows, duplication, jitter / delay spikes / reordering, bit corruption (stale UDP checksum) | Requester retransmits the identical request every T1=3 s up to N1=3 (TS 29.244 7.2.1); a peer that already answered replays its cached response; duplicate requests are answered, not re-executed; exhausted retries log `exchange_failed` |
+| Network | UPF process down (host up) | ICMP / ICMPv6 port-unreachable instead of silence |
+| Protocol - request | missing mandatory / nested IE, invalid QFI, GBR>MBR, zero TEID, bad IE length, unknown SEID | Peer rejection with the proper Cause (66, 69, 73 + Failed Rule ID, 68, 65) and Offending IE |
+| Protocol - request | wrong header length, S-flag mismatch, truncation, unknown message type | Silent discard, then retransmission |
+| Protocol - request | wrong PFCP version | Version Not Supported Response |
+| Protocol - request | unknown optional IE, duplicate IE, IE reorder, trailing bytes | Tolerated: original response kept (interop tests) |
+| Protocol - response | undefined Cause, accepted without UP F-SEID, Recovery Time Stamp jump / regression, wrong sequence number / SEID | Unmatched responses force retransmission + replay; others are flagged by the compliance checker |
+| Scenario | heartbeat flap, signalling storm (overload Cause 74 + Overload Control timer + retry), orphaned session after silent UPF restart | Multi-step recovery sequences |
+
+Presets: `congested_backhaul lossy_link upf_process_down link_outage buggy_peer
+interop_tolerance fuzz_framing restart_anomalies chaos`. Custom plans are JSON
+(`FaultPlan.from_dict`): `network` (see `NetworkProfile`) and a `protocol` list of
+`{"fault": ..., "probability": ..., "messages": [...]}`. Use `tap: "receiver"` to
+hide lost packets, as a probe at the receiving side would see.
+
+Limitations: later messages of a session are not causally delayed or suppressed
+when an earlier exchange is delayed or fails; ESP-protected traffic is passed
+through untouched; protocol anomalies need dissectable PFCP.
+
 ## Enhancement Plan - status
 
 Project board: https://github.com/users/cem8kaya/projects/4

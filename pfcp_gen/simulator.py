@@ -290,9 +290,15 @@ class PFCPSimulator:
                      I.IE_PDNType(pdn_type=2 if I.is_ipv6(s.ue_ip) else 1),
                      I.IE_APN_DNN(apn_dnn=profile.dnn)])
         if reject_cause is not None:
+            extra = []
+            if reject_cause == I.CAUSE_CONGESTION:
+                extra = [I.IE_OverloadControlInformation(IE_list=[
+                    I.IE_SequenceNumber(number=1), I.IE_Metric(metric=80),
+                    I.IE_Timer(timer_unit=1, timer_value=30)])]
             rsp = self._sess_hdr(seq, s.cp_seid) / \
                 I.PFCPSessionEstablishmentResponse(IE_list=[
-                    I.node_id(upf.address), I.IE_Cause(cause=reject_cause)])
+                    I.node_id(upf.address), I.IE_Cause(cause=reject_cause),
+                    *extra])
             self._exchange(req, rsp, self.cp_ip, upf.address)
             s.transition(SessionState.DELETED)
             self.pool.release(upf)
