@@ -1,224 +1,272 @@
-# Enhanced PFCP Packet Generator
-
-
-## Description
-
-The Enhanced PFCP (Packet Forwarding Control Protocol) Packet Generator is a Python-based tool designed for creating and manipulating PFCP packets. It's primarily used for testing and simulating 5G core network environments. Leveraging the Scapy library, this tool generates various PFCP messages compliant with 3GPP TS 29.244 specifications, offering a flexible and powerful solution for developers and testers working with 5G core network components.
-
-
-What's the packet forwarding model in PFCP? (Source: Navarro do Amaral et al. 2022, fig. 5)
-
-
-<img width="518" alt="image" src="https://github.com/user-attachments/assets/77d983c0-9b8b-455e-b9a3-58fd5371edb3">
-
-
-Which are the main procedures in PFCP? (Source: ETSI 2023c, table 7.3-1.)
-
-
-![image](https://github.com/user-attachments/assets/6c2688a0-ed80-49d5-b483-79e6fcec1dea)
-
+<div align="center">
 
 # Enhanced PFCP Packet Generator
 
-## Description
+**Scenario-driven PFCP (N4) traffic generator, fault injector and compliance checker for 5G core testing.**
 
-The Enhanced PFCP (Packet Forwarding Control Protocol) Packet Generator is a Python-based tool designed for creating and manipulating PFCP packets. It's primarily used for testing and simulating 5G core network environments. Leveraging the Scapy library, this tool generates various PFCP messages compliant with 3GPP TS 29.244 specifications, offering a flexible and powerful solution for developers and testers working with 5G core network components.
+[![CI](https://github.com/cem8kaya/pfcp_packet_generator/actions/workflows/ci.yml/badge.svg)](https://github.com/cem8kaya/pfcp_packet_generator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/cem8kaya/pfcp_packet_generator)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white)
+[![Scapy](https://img.shields.io/badge/built%20with-Scapy-orange)](https://scapy.net/)
+[![3GPP TS 29.244](https://img.shields.io/badge/3GPP-TS%2029.244-success)](https://portal.3gpp.org/desktopmodules/Specifications/SpecificationDetails.aspx?specificationId=3111)
+[![Tests](https://img.shields.io/badge/tests-116%20passing-brightgreen)](tests)
+[![Issues](https://img.shields.io/github/issues/cem8kaya/pfcp_packet_generator)](https://github.com/cem8kaya/pfcp_packet_generator/issues)
+[![Last commit](https://img.shields.io/github/last-commit/cem8kaya/pfcp_packet_generator)](https://github.com/cem8kaya/pfcp_packet_generator/commits)
+[![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-ff69b4)](.github/FUNDING.yml)
 
-## Supported Features and 3GPP Notations
+</div>
 
-### Supported PFCP Message Types
+---
 
-1. Association Setup Request/Response (Section 7.4.4)
-2. Session Establishment Request/Response (Section 7.5.3)
-3. Session Modification Request/Response (Section 7.5.4)
-4. Session Deletion Request/Response (Section 7.5.5)
-5. Heartbeat Request/Response (Section 7.4.1)
+## Table of contents
 
-### Implemented Information Elements (IEs)
+- [Why PFCP matters](#why-pfcp-matters)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Command line](#command-line)
+  - [Python API](#python-api)
+  - [Traffic profiles](#traffic-profiles)
+  - [Fault and anomaly injection](#fault-and-anomaly-injection)
+  - [Compliance checking](#compliance-checking)
+  - [Analysing the output](#analysing-the-output)
+- [Project layout](#project-layout)
+- [Supported messages and IEs](#supported-messages-and-ies)
+- [Enhancement plan status](#enhancement-plan-status)
+- [Limitations](#limitations)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License and contact](#license-and-contact)
 
-1. Node ID (Section 8.2.38)
-2. F-SEID (CP/UP F-SEID, Section 8.2.39)
-3. PDR (Packet Detection Rule, Section 8.2.41)
-4. FAR (Forwarding Action Rule, Section 8.2.42)
-5. QER (QoS Enforcement Rule, Section 8.2.68)
-6. URR (Usage Reporting Rule, Section 8.2.44)
-7. Cause (Section 8.2.1)
-8. Recovery Time Stamp (Section 8.2.3)
-9. Gate Status (Section 8.2.69)
-10. MBR (Maximum Bitrate, Section 8.2.70)
-11. GBR (Guaranteed Bitrate, Section 8.2.71)
-12. QFI (QoS Flow Identifier, Section 8.2.89)
+## Why PFCP matters
 
-### Simulated Procedures
+PFCP (Packet Forwarding Control Protocol, [3GPP TS 29.244](https://portal.3gpp.org/desktopmodules/Specifications/SpecificationDetails.aspx?specificationId=3111)) is the **N4 interface** protocol between the 5G core's SMF (control plane) and UPF (user plane). Every PDU session, QoS rule, usage report and paging trigger is installed and reported through it, so a PFCP defect can interrupt data services or break charging. Realistic and *deliberately broken* PFCP traffic is therefore essential for functional, interoperability, robustness and security testing of 5G cores, probes and IDS systems.
 
-1. PFCP Association Setup
-2. PFCP Session Establishment
-3. PFCP Session Modification
-4. PFCP Session Deletion
-5. PFCP Heartbeat Procedure
+This tool uses [Scapy](https://scapy.net/) to build spec-aligned PFCP messages and write them to PCAP files.
 
-## Supported Features
+<img width="518" alt="PFCP packet forwarding model (Navarro do Amaral et al. 2022, fig. 5)" src="https://github.com/user-attachments/assets/77d983c0-9b8b-455e-b9a3-58fd5371edb3">
 
-1. Generation of various PFCP message types
-2. Creation of multiple Information Elements (IEs) as per 3GPP standards
-3. Enhanced QoS handling with detailed parameters
-4. Random generation of SEIDs, PDR IDs, FAR IDs, QER IDs, and URR IDs
-5. PCAP file creation for easy analysis and replay of PFCP traffic
-6. Robust error handling and detailed logging
-7. Strict adherence to 3GPP TS 29.244 specifications
-8. Extensible design for future enhancements
-9. Customizable source and destination IP addresses for PFCP packets
+*Packet forwarding model in PFCP (Navarro do Amaral et al. 2022, fig. 5).*
 
-## Limitations and Simplifications
+![Main PFCP procedures (ETSI 2023c, table 7.3-1)](https://github.com/user-attachments/assets/6c2688a0-ed80-49d5-b483-79e6fcec1dea)
 
-1. Limited to PFCP protocol simulation only; does not simulate actual user plane traffic
-2. Simplified network topology assumed (point-to-point communication between CP and UP functions)
-3. Does not include all possible IEs defined in 3GPP TS 29.244; focuses on core elements
-4. The legacy `pfcp_packet_generator.py` is stateless; use the `pfcp_gen` package for stateful scenarios
-5. Network delay is modelled as a jittered RTT and request retransmission; no real packet loss on the wire
-6. PFCP has no native authentication: node authentication is simulated via allow-list + optional ESP wrapping
+*Main PFCP procedures (ETSI 2023c, table 7.3-1).*
 
-## Requirements
+## Features
 
-- Python 3.7+
-- Scapy library
-- Scapy PFCP contribution (bundled with Scapy)
-- `cryptography` (only for `--ipsec`)
+| Area | Highlights |
+|---|---|
+| **Session lifecycle** | State machine (illegal transitions rejected), consistent SEIDs / sequence numbers, Association, Heartbeat, Session Establishment / Modification / Deletion / Report, PFD Management, Node Report |
+| **5G elements** | QFI, S-NSSAI slicing, DNN / network instance, PDU session type, QoS (MBR/GBR/gate status), URSP-derived rules |
+| **Usage reporting** | Volume / time / periodic triggers, Query URR, Usage Reports in Report / Modification / Deletion messages |
+| **Forwarding** | FORW with outer header creation, DROP, BUFF/NOCP paging path, DUPL, forwarding policy |
+| **Resources** | UPF- or CP-allocated F-TEIDs (sequential, random, TEID range), UPF pool with capacity / slice matching / 4 selection strategies |
+| **Transport** | IPv4 and IPv6, optional ESP-protected N4, node allow-list authentication |
+| **Traffic modelling** | Presets (`embb`, `urllc`, `miot`, `voice`), custom JSON profiles, constant / Poisson / burst timing |
+| **Fault injection** | Burst loss, outages, ICMP unreachable, duplication, jitter, corruption, 22 protocol anomalies, stateful failure scenarios, ground-truth log |
+| **Compliance** | Header, mandatory IE, cause, rule-consistency and request/response checks on generated or captured PCAPs |
 
-Install: `pip install -r requirements.txt`
+## Installation
 
-## Analysis
-
-The generated PCAP files can be analyzed using various tools:
-
-1. Wireshark: Open the PCAP file in Wireshark for detailed packet analysis. Ensure you have the PFCP dissector enabled.
-2. tshark: Use command-line tshark for quick analysis or scripting purposes.
-3. Scapy: Re-read the PCAP file using Scapy for programmatic analysis or further manipulation.
-
-Example Wireshark filter for PFCP traffic:
-```
-pfcp
+```bash
+git clone https://github.com/cem8kaya/pfcp_packet_generator.git
+cd pfcp_packet_generator
+python -m venv .venv && source .venv/bin/activate   # optional
+pip install -r requirements.txt
 ```
 
+Requirements: Python 3.8+, [Scapy](https://scapy.net/) (includes the PFCP contribution), `cryptography` (only for `--ipsec`), `pytest` (tests).
 
+## Usage
 
-## License
+### Command line
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. Contact : cem8kaya@gmail.com
+```bash
+python -m pfcp_gen --help
+python -m pfcp_gen generate <scenario> [options]
+python -m pfcp_gen check <file.pcap>
+python -m pfcp_gen inject <file.pcap> --faults <preset|plan.json>
+python -m pfcp_gen faults        # list fault presets and anomalies
+python -m pfcp_gen profiles      # list traffic profiles
+```
 
-## Analysis
+**Scenarios:** `lifecycle` `paging` `multi` `slices` `restart` `errors` `usage` `appdetect` `mixed` `flap` `storm` `orphan`
 
-Use Wireshark or other packet analysis tools to examine the generated PCAP files.
+| Option | Meaning |
+|---|---|
+| `-n, --count N` | Repetitions / session count (scenario dependent) |
+| `-o, --output FILE` | Output PCAP (default `pfcp.pcap`) |
+| `--profile NAME\|FILE` | `embb` (default), `urllc`, `miot`, `voice`, or a JSON file |
+| `--seed N` | Reproducible output |
+| `--ipv6` | IPv6 transport and addresses |
+| `--ipsec` | Wrap N4 in ESP |
+| `--ursp` | Add URSP-derived PDRs |
+| `--upfs N` / `--upf-strategy S` | UPF pool size / `round_robin`, `least_loaded`, `weighted`, `random` |
+| `--fteid MODE` | `up` (UPF allocates), or CP strategy `sequential`, `random`, `range` |
+| `--trusted ID...` | Node ID allow-list (untrusted peers get Cause 64) |
+| `--faults PLAN` | Inject faults (preset or JSON) |
+| `--fault-log FILE` | Write ground-truth JSON |
+| `--check` | Run the compliance checker on the output |
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. Please ensure your code adheres to the project's coding standards and includes appropriate tests.
-
-
-
-
-
-
-
-## Quick start (`pfcp_gen` package)
+Examples:
 
 ```bash
 python -m pfcp_gen generate lifecycle -n 5 -o out.pcap --check
-python -m pfcp_gen generate paging   --profile urllc --upfs 3 --fteid range
-python -m pfcp_gen generate restart  --ipv6
-python -m pfcp_gen generate errors   -o errors.pcap
-python -m pfcp_gen generate slices -n 3 --ursp --ipsec
-python -m pfcp_gen generate lifecycle --profile profiles/miot.json --seed 42
-python -m pfcp_gen check out.pcap          # compliance-check any PFCP pcap
-python -m pfcp_gen profiles                # list built-in traffic profiles
-pytest tests                               # run the test-suite
+python -m pfcp_gen generate paging --profile urllc --upfs 3 --fteid range --seed 42
+python -m pfcp_gen generate mixed -n 10 --ipv6 --ipsec
+python -m pfcp_gen generate errors -o errors.pcap
+python -m pfcp_gen generate mixed -n 10 --faults congested_backhaul --fault-log gt.json -o faulty.pcap
 ```
 
-Scenarios: `lifecycle paging multi slices restart errors usage appdetect mixed`.
-Python API: `from pfcp_gen import PFCPSimulator` - see `pfcp_gen/simulator.py`.
+### Python API
 
-| Module | Purpose |
-|---|---|
-| `pfcp_gen/ies.py` | IE builders (PDR/FAR/QER/URR/BAR, PDI, S-NSSAI, usage report, PFD, IPv4/IPv6) |
-| `pfcp_gen/state.py` | session state machine, F-TEID allocator, UPF pool |
-| `pfcp_gen/profiles.py` | traffic profiles (presets + JSON) and timing models |
-| `pfcp_gen/simulator.py` | message exchanges and composite scenarios |
-| `pfcp_gen/security.py` | node allow-list and ESP protection |
-| `pfcp_gen/compliance.py` | TS 29.244 compliance checker |
-| `profiles/*.json` | example custom traffic profiles |
+```python
+from pfcp_gen import PFCPSimulator, ComplianceChecker
 
-## Fault and anomaly injection
+sim = PFCPSimulator(cp_ip="192.0.2.1", profile="urllc", seed=1)
+sim.lifecycle(reports=3, with_paging=True)   # assoc -> session -> usage -> paging -> delete
+sim.write("session.pcap")
 
-`pfcp_gen/faults.py` injects faults modelled on real N4 behaviour and writes a
-**ground-truth log** (JSON: time, layer, fault, detail, expected peer
-behaviour, packet index) so probes, IDS rules and dissectors can be scored.
+violations = ComplianceChecker().check_packets(sim.packets)
+print(len(violations), "findings")
+```
+
+The original stateless `RobustPFCPPacketGenerator` in `pfcp_packet_generator.py` remains available (`python pfcp_packet_generator.py`).
+
+### Traffic profiles
+
+Built-in presets are listed with `python -m pfcp_gen profiles`; examples for custom profiles are in [`profiles/`](profiles). Fields include `qfi` (1..63), `mbr_*`, `gbr_*`, `dnn`, `sst`/`sd`, `volume_threshold`, `time_threshold`, `timing` (`constant`/`poisson`/`burst`) and more. Invalid values (e.g. a 5QI used as QFI, GBR above MBR) are rejected.
 
 ```bash
-python -m pfcp_gen faults                                   # list presets / anomalies
-python -m pfcp_gen generate mixed -n 10 --faults congested_backhaul --fault-log gt.json -o f.pcap
-python -m pfcp_gen generate lifecycle --faults buggy_peer --check
-python -m pfcp_gen inject existing.pcap --faults chaos --fault-seed 7 -o faulty.pcap
-python -m pfcp_gen generate storm -n 3        # signalling storm + Cause 74 + backoff
-python -m pfcp_gen generate flap              # heartbeat flapping, path stays up
-python -m pfcp_gen generate orphan            # silent UPF restart -> Cause 65 -> re-establish
+python -m pfcp_gen generate lifecycle --profile profiles/miot.json
 ```
+
+### Fault and anomaly injection
+
+`pfcp_gen/faults.py` injects faults modelled on real N4 behaviour and writes a **ground-truth log** (time, layer, fault, detail, expected peer behaviour, packet index) so probes, IDS rules and dissectors can be scored.
 
 | Layer | What is injected | Realistic consequence generated |
 |---|---|---|
-| Network | Gilbert-Elliott burst loss, plain loss, outage windows, duplication, jitter / delay spikes / reordering, bit corruption (stale UDP checksum) | Requester retransmits the identical request every T1=3 s up to N1=3 (TS 29.244 7.2.1); a peer that already answered replays its cached response; duplicate requests are answered, not re-executed; exhausted retries log `exchange_failed` |
+| Network | Gilbert-Elliott burst loss, plain loss, outage windows, duplication, jitter / delay spikes / reordering, bit corruption (stale UDP checksum) | Requester retransmits the identical request every T1 = 3 s up to N1 = 3 (TS 29.244 §7.2.1); an already-answered peer replays its cached response; exhausted retries log `exchange_failed` |
 | Network | UPF process down (host up) | ICMP / ICMPv6 port-unreachable instead of silence |
-| Protocol - request | missing mandatory / nested IE, invalid QFI, GBR>MBR, zero TEID, bad IE length, unknown SEID | Peer rejection with the proper Cause (66, 69, 73 + Failed Rule ID, 68, 65) and Offending IE |
-| Protocol - request | wrong header length, S-flag mismatch, truncation, unknown message type | Silent discard, then retransmission |
-| Protocol - request | wrong PFCP version | Version Not Supported Response |
-| Protocol - request | unknown optional IE, duplicate IE, IE reorder, trailing bytes | Tolerated: original response kept (interop tests) |
-| Protocol - response | undefined Cause, accepted without UP F-SEID, Recovery Time Stamp jump / regression, wrong sequence number / SEID | Unmatched responses force retransmission + replay; others are flagged by the compliance checker |
-| Scenario | heartbeat flap, signalling storm (overload Cause 74 + Overload Control timer + retry), orphaned session after silent UPF restart | Multi-step recovery sequences |
+| Protocol, request | missing mandatory / nested IE, invalid QFI, GBR > MBR, zero TEID, bad IE length, unknown SEID | Rejection with the proper Cause (66, 69, 73 + Failed Rule ID, 68, 65) and Offending IE |
+| Protocol, request | wrong header length, S-flag mismatch, truncation, unknown message type | Silent discard, then retransmission |
+| Protocol, request | wrong PFCP version | Version Not Supported Response |
+| Protocol, request | unknown optional IE, duplicate IE, IE reorder, trailing bytes | Tolerated: original response kept (interop tests) |
+| Protocol, response | undefined Cause, accepted without UP F-SEID, Recovery Time Stamp jump / regression, wrong sequence / SEID | Unmatched responses force retransmission + replay; others flagged by the checker |
+| Scenario | `flap`, `storm`, `orphan` | Heartbeat flapping, signalling storm (Cause 74 + overload timer + retry), silent UPF restart (Cause 65 + re-establish) |
 
-Presets: `congested_backhaul lossy_link upf_process_down link_outage buggy_peer
-interop_tolerance fuzz_framing restart_anomalies chaos`. Custom plans are JSON
-(`FaultPlan.from_dict`): `network` (see `NetworkProfile`) and a `protocol` list of
-`{"fault": ..., "probability": ..., "messages": [...]}`. Use `tap: "receiver"` to
-hide lost packets, as a probe at the receiving side would see.
+**Presets:** `congested_backhaul` `lossy_link` `upf_process_down` `link_outage` `buggy_peer` `interop_tolerance` `fuzz_framing` `restart_anomalies` `chaos`
 
-Limitations: later messages of a session are not causally delayed or suppressed
-when an earlier exchange is delayed or fails; ESP-protected traffic is passed
-through untouched; protocol anomalies need dissectable PFCP.
+Custom plan (`--faults plan.json`):
 
-## Enhancement Plan - status
+```json
+{
+  "name": "my-plan",
+  "seed": 7,
+  "network": {"loss": 0.02, "jitter_ms": 3, "tap": "receiver"},
+  "protocol": [
+    {"fault": "missing_mandatory_ie", "probability": 0.1, "messages": [50]},
+    {"fault": "rsp_peer_restart", "probability": 0.2, "messages": [2]}
+  ]
+}
+```
 
-Project board: https://github.com/users/cem8kaya/projects/4
+For response-side faults, `messages` are *response* types; the logged `message_type` is the exchange's request type. `tap: "receiver"` hides lost packets, as a probe at the receiving side would see.
 
-### High Priority (Essential for basic realism)
+### Compliance checking
 
-1. [DONE] Enhance Information Elements (Create/Update/Remove PDR, FAR, QER, URR)
-2. [DONE] Realistic Session Lifecycle Simulation - `SessionState` machine (illegal transitions raise `InvalidTransition`), consistent SEIDs/sequence numbers, `PFCPSimulator.lifecycle()`
-3. [DONE] Additional Message Types - Session Report Request/Response, Association Update/Release, PFD Management, Node Report, Session Set Deletion, Version Not Supported
-4. [DONE] QoS Handling
-5. [DONE] Usage Reporting - Create/Update/Query URR, volume/time/periodic triggers, Usage Report in Session Report, Modification and Deletion responses, UR-SEQN
-6. [DONE] 5G-Specific Elements - QFI (validated 1..63), PDU session type, DNN, S-NSSAI (IE 257, custom IE since Scapy lacks it), outer-header removal for N3
+```bash
+python -m pfcp_gen check capture.pcap     # exit code 1 on errors
+```
 
-### Medium Priority (Enhances realism significantly)
+Checks: PFCP version / length / S-flag, SEID rules, mandatory IEs per message, defined Cause values, rule consistency (GBR ≤ MBR, QFI 1..63, FORW needs forwarding parameters, unique IDs), IE length integrity, round-trip encoding, request/response pairing.
 
-7. [DONE] Traffic Patterns and Timing - `constant`, `poisson`, `burst` models; request/response timestamps with jittered RTT
-8. [DONE] Network Slicing - S-NSSAI in PDI, per-slice sessions (`slices` scenario), slice-aware UPF selection
-9. [DONE] Failure Handling and Recovery - unanswered heartbeats with N1/T1, UPF restart (new Recovery Time Stamp, re-association), CP restart (Session Set Deletion), path failure Node Report, request retransmission
-10. [DONE] Packet Forwarding - FORW with outer header creation, DROP, BUFF/NOCP, DUPL, forwarding policy, network instance
-11. [DONE] Error Scenarios - 13 scenarios (cause 64-77, Offending IE, Failed Rule ID, overload control, version not supported)
-12. [DONE] F-TEID Allocation - UP-allocated (CHOOSE flag + Created PDR), CP-allocated sequential/random/TEID-range (advertised via User Plane IP Resource Information)
-13. [DONE] Buffering and Paging - BAR, BUFF+NOCP, Downlink Data Report, resume on service request
+### Analysing the output
 
-### Lower Priority (Adds depth to specific scenarios)
+- **Wireshark:** open the PCAP and use the display filter `pfcp`.
+- **tshark:** `tshark -r out.pcap -Y pfcp -V`
+- **Scapy:** `rdpcap("out.pcap")` for programmatic analysis.
+- Fault logs are plain JSON and can be joined with probe output on packet `index`.
 
-14. [DONE] UPF Selection and Load Balancing - `UpfPool` with capacity, DNN/slice capability matching, round-robin / least-loaded / weighted / random
-15. [DONE] Application Detection and Control - PFD Management, Application ID in PDI, Application Detection Information report
-16. [DONE] IPv6 Support - IPv6 transport, Node ID, F-SEID, F-TEID, UE IP, outer header creation, user-plane resource info
-17. [DONE] Security Features - Node ID allow-list authentication (cause 64 on failure) and ESP-wrapped N4 (`--ipsec`). Note: 3GPP specifies transport-level protection, not a PFCP auth message
-18. [DONE] URSP Integration - `UrspRule` mapped to N4-visible effects (traffic descriptor to SDF/App ID, route selection to S-NSSAI/DNN, precedence). URSP itself is a NAS/PCF construct, so only its UPF-side consequences appear in PFCP
-19. [DONE] Customizable Traffic Profiles - `TrafficProfile` dataclass, presets (`embb`, `urllc`, `miot`, `voice`), JSON loading with validation
-20. [DONE] Compliance Checking - header/length/S-flag rules, mandatory IE tables, cause values, rule consistency (GBR<=MBR, FORW needs forwarding parameters, ...), request/response pairing, PCAP checker
+## Project layout
 
-### Known gaps / future work
+| Path | Purpose |
+|---|---|
+| `pfcp_gen/ies.py` | IE builders (PDR/FAR/QER/URR/BAR, PDI, S-NSSAI, usage report, PFD, IPv4/IPv6) |
+| `pfcp_gen/state.py` | Session state machine, F-TEID allocator, UPF pool |
+| `pfcp_gen/profiles.py` | Traffic profiles and timing models |
+| `pfcp_gen/simulator.py` | Message exchanges and composite scenarios |
+| `pfcp_gen/faults.py` | Fault / anomaly injector and failure scenarios |
+| `pfcp_gen/security.py` | Node allow-list and ESP protection |
+| `pfcp_gen/compliance.py` | TS 29.244 compliance checker |
+| `pfcp_gen/__main__.py` | CLI |
+| `profiles/*.json` | Example custom traffic profiles |
+| `tests/` | Test suite |
+| `pfcp_packet_generator.py` | Original stateless generator |
 
-- Compliance tables cover Rel-15/16 mandatory IEs, not every conditional rule of TS 29.244
-- Output has not been validated against a Wireshark dissector in CI (tshark unavailable here); round-trip via Scapy is tested
-- Ethernet PDU sessions, MBS and Rel-17+ IEs are not modelled
+## Supported messages and IEs
+
+**Messages (TS 29.244 §7.4, §7.5):** Heartbeat, PFD Management, Association Setup / Update / Release, Node Report, Session Set Deletion, Version Not Supported, Session Establishment / Modification / Deletion / Report (request and response).
+
+**IEs:** Node ID (IPv4/IPv6/FQDN), F-SEID, F-TEID (incl. CHOOSE), UE IP Address, Create/Update/Remove PDR, FAR, QER, URR, BAR, PDI, SDF Filter, Application ID, Outer Header Creation/Removal, Forwarding Parameters/Policy, MBR/GBR/QFI/Gate Status, Usage Report and measurement IEs, Downlink Data Report, Application Detection Information, PFD contents, Cause, Offending IE, Failed Rule ID, Overload Control Information, Recovery Time Stamp, UP/CP function features, User Plane IP Resource Information, and S-NSSAI (IE 257, implemented here because Scapy lacks it).
+
+## Enhancement plan status
+
+Project board: <https://github.com/users/cem8kaya/projects/4> · Pull request: [#24](https://github.com/cem8kaya/pfcp_packet_generator/pull/24)
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Complex IEs (Create/Update/Remove PDR, FAR, QER, URR) | ✅ |
+| 2 | Session lifecycle state machine | ✅ |
+| 3 | Session Report and additional message types | ✅ |
+| 4 | QoS handling | ✅ |
+| 5 | Usage reporting | ✅ |
+| 6 | 5G-specific IEs (QFI, S-NSSAI, DNN) | ✅ |
+| 7 | Traffic patterns and timing | ✅ |
+| 8 | Network slicing | ✅ |
+| 9 | Failure handling and recovery | ✅ |
+| 10 | Packet forwarding scenarios | ✅ |
+| 11 | Error scenarios | ✅ |
+| 12 | F-TEID allocation | ✅ |
+| 13 | Buffering and paging | ✅ |
+| 14 | UPF selection and load balancing | ✅ |
+| 15 | Application detection and control | ✅ |
+| 16 | IPv6 support | ✅ |
+| 17 | Security (allow-list auth, ESP-protected N4) | ✅ |
+| 18 | URSP integration (N4-visible effects) | ✅ |
+| 19 | Customizable traffic profiles | ✅ |
+| 20 | Compliance checking | ✅ |
+| – | Fault and anomaly injector (beyond original plan) | ✅ |
+
+## Limitations
+
+- Control-plane simulation only; no user-plane (GTP-U) traffic.
+- PFCP has no native authentication: node authentication is simulated with an allow-list plus optional ESP wrapping (3GPP specifies transport-level protection).
+- URSP is a NAS/PCF construct; only its UPF-side consequences appear in PFCP.
+- Compliance tables cover Rel-15/16 mandatory IEs, not every conditional rule of TS 29.244; Ethernet PDU sessions, MBS and Rel-17+ IEs are not modelled.
+- Fault injection does not causally delay or suppress later messages of a session after an earlier exchange fails; ESP-protected traffic is passed through untouched.
+- Output has not been validated against a Wireshark dissector in CI (round-trip through Scapy is tested).
+
+## Testing
+
+```bash
+pip install -r requirements.txt
+pytest -q tests      # 116 tests, ~1 min
+```
+
+CI runs the suite on Python 3.9–3.12 ([workflow](.github/workflows/ci.yml)).
+
+## Contributing
+
+Contributions are welcome. Please open an [issue](https://github.com/cem8kaya/pfcp_packet_generator/issues) to discuss larger changes, keep the existing code style, and include tests for new behaviour (`pytest -q tests` must pass). Pull requests: <https://github.com/cem8kaya/pfcp_packet_generator/pulls>.
+
+## License and contact
+
+Released under the [MIT License](LICENSE). Contact: [cem8kaya@gmail.com](mailto:cem8kaya@gmail.com).
+
+## References
+
+- 3GPP TS 29.244, *Interface between the Control Plane and the User Plane nodes*
+- 3GPP TS 23.501 / 23.502, *5G System architecture and procedures*
+- Navarro do Amaral et al. (2022); ETSI (2023c)
